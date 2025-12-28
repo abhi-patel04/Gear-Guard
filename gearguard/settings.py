@@ -32,6 +32,8 @@ DEBUG = True
 import os
 # This tells Django: "Look at the Render Dashboard first, or use localhost"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
+# Tell Django to trust the Render URL for form submissions (CSRF)
+CSRF_TRUSTED_ORIGINS = ['https://gear-guard-1.onrender.com']
 
 
 # Application definition
