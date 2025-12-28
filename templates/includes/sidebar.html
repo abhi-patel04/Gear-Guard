@@ -1,0 +1,79 @@
+{# Sidebar Navigation #}
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h3 class="sidebar-brand">
+            <i class="bi bi-shield-check"></i>
+            <span class="brand-text">GearGuard</span>
+        </h3>
+        <button class="btn btn-link sidebar-toggle d-md-none" id="sidebarToggle">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    
+    <ul class="sidebar-menu">
+        {# Dashboard #}
+        <li class="sidebar-item">
+            <a href="{% url 'dashboard:index' %}" class="sidebar-link {% if request.resolver_match.namespace == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        
+        {# Equipment #}
+        <li class="sidebar-item">
+            <a href="{% url 'equipment:list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'equipment' %}active{% endif %}">
+                <i class="bi bi-laptop"></i>
+                <span>Equipment</span>
+            </a>
+        </li>
+        
+        {# Maintenance Requests #}
+        <li class="sidebar-item">
+            <a href="{% url 'maintenance:list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'maintenance' %}active{% endif %}">
+                <i class="bi bi-tools"></i>
+                <span>Maintenance</span>
+            </a>
+        </li>
+        
+        {# Kanban Board #}
+        <li class="sidebar-item">
+            <a href="{% url 'maintenance:kanban' %}" class="sidebar-link">
+                <i class="bi bi-kanban"></i>
+                <span>Kanban Board</span>
+            </a>
+        </li>
+        
+        {# Calendar #}
+        <li class="sidebar-item">
+            <a href="{% url 'maintenance:calendar' %}" class="sidebar-link">
+                <i class="bi bi-calendar3"></i>
+                <span>Calendar</span>
+            </a>
+        </li>
+        
+        {# Teams #}
+        <li class="sidebar-item">
+            <a href="{% url 'teams:list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'teams' %}active{% endif %}">
+                <i class="bi bi-people"></i>
+                <span>Teams</span>
+            </a>
+        </li>
+        
+        {# Divider #}
+        <li class="sidebar-divider"></li>
+        
+        {# Admin Panel (only for staff) #}
+        {% if user.is_staff %}
+        <li class="sidebar-item">
+            <a href="/admin/" class="sidebar-link" target="_blank">
+                <i class="bi bi-gear"></i>
+                <span>Admin Panel</span>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+{# Sidebar Overlay (for mobile) #}
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+

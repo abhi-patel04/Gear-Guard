@@ -1,0 +1,462 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - GearGuard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="bi bi-speedometer2"></i>
+        Dashboard
+    </h1>
+    <p class="page-subtitle">Overview of your maintenance operations</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    {# Statistics Cards #}
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body stat-card">
+                <i class="bi bi-laptop" style="font-size: 2rem; color: #0d6efd;"></i>
+                <div class="stat-value">{{ total_equipment }}</div>
+                <div class="stat-label">Total Equipment</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body stat-card">
+                <i class="bi bi-tools" style="font-size: 2rem; color: #ffc107;"></i>
+                <div class="stat-value">{{ open_requests }}</div>
+                <div class="stat-label">Open Requests</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body stat-card">
+                <i class="bi bi-exclamation-triangle" style="font-size: 2rem; color: #dc3545;"></i>
+                <div class="stat-value">{{ overdue_requests }}</div>
+                <div class="stat-label">Overdue Requests</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body stat-card">
+                <i class="bi bi-check-circle" style="font-size: 2rem; color: #198754;"></i>
+                <div class="stat-value">{{ completed_today }}</div>
+                <div class="stat-label">Completed Today</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {# Recent Activity #}
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Maintenance Requests
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Equipment</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in recent_requests %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'maintenance:detail' req.pk %}" class="text-decoration-none">
+                                                {{ req.subject|truncatewords:5 }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'equipment:detail' req.equipment.pk %}" class="text-decoration-none">
+                                                {{ req.equipment.name|truncatewords:3 }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if req.request_type == 'Preventive' %}
+                                                <span class="badge bg-primary">Preventive</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Corrective</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if req.status == 'New' %}
+                                                <span class="badge badge-status-new">New</span>
+                                            {% elif req.status == 'In Progress' %}
+                                                <span class="badge badge-status-in-progress">In Progress</span>
+                                            {% elif req.status == 'Repaired' %}
+                                                <span class="badge badge-status-repaired">Repaired</span>
+                                            {% elif req.status == 'Scrap' %}
+                                                <span class="badge badge-status-scrap">Scrap</span>
+                                            {% endif %}
+                                            {% if req.is_overdue %}
+                                                <span class="badge bg-danger ms-1">Overdue</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ req.created_at|date:"M d, Y" }}</td>
+                                        <td>
+                                            <a href="{% url 'maintenance:detail' req.pk %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'maintenance:list' %}" class="btn btn-outline-primary">
+                            View All Requests
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <h3>No requests yet</h3>
+                        <p>Maintenance requests will appear here once created.</p>
+                        <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i>
+                            Create Request
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {# Quick Actions #}
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i>
+                        New Maintenance Request
+                    </a>
+                    {% if is_manager %}
+                        <a href="{% url 'equipment:create' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-laptop"></i>
+                            Add Equipment
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'maintenance:kanban' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-kanban"></i>
+                        View Kanban Board
+                    </a>
+                    <a href="{% url 'maintenance:calendar' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-calendar3"></i>
+                        View Calendar
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {# User Stats #}
+        {% if my_requests is not None %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person"></i>
+                        My Requests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ my_requests }}</div>
+                        <div class="stat-label">Total Requests Created</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    {# Status Breakdown #}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i>
+                    Status Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if status_breakdown %}
+                    <canvas id="statusChart" height="200"></canvas>
+                {% else %}
+                    <p class="text-muted text-center">No data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {# Request Type Breakdown #}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart"></i>
+                    Request Type Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if type_breakdown %}
+                    <canvas id="typeChart" height="200"></canvas>
+                {% else %}
+                    <p class="text-muted text-center">No data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_manager %}
+<div class="row">
+    {# Team Statistics #}
+    {% if team_stats %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-people"></i>
+                    Team Performance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Team</th>
+                                <th>Active Requests</th>
+                                <th>Total Requests</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for team in team_stats %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'teams:detail' team.pk %}" class="text-decoration-none">
+                                            {{ team.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">{{ team.active_request_count }}</span>
+                                    </td>
+                                    <td>{{ team.request_count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {# Equipment by Department #}
+    {% if equipment_by_department %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-building"></i>
+                    Equipment by Department
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Equipment Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dept in equipment_by_department %}
+                                <tr>
+                                    <td>{{ dept.department }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ dept.count }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if recent_completed %}
+<div class="row">
+    {# Recent Completed #}
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-check-circle"></i>
+                    Recently Completed
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Equipment</th>
+                                <th>Duration</th>
+                                <th>Completed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in recent_completed %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'maintenance:detail' req.pk %}" class="text-decoration-none">
+                                            {{ req.subject|truncatewords:5 }}
+                                        </a>
+                                    </td>
+                                    <td>{{ req.equipment.name|truncatewords:3 }}</td>
+                                    <td>{{ req.get_duration_display|default:"—" }}</td>
+                                    <td>{{ req.completed_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'maintenance:detail' req.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{# Chart.js for charts #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status Breakdown Chart
+    {% if status_breakdown %}
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const statusData = {
+            labels: [
+                {% for item in status_breakdown %}
+                    '{{ item.status }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for item in status_breakdown %}
+                        {{ item.count }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#0dcaf0',  // New - Cyan
+                    '#ffc107',  // In Progress - Yellow
+                    '#198754',  // Repaired - Green
+                    '#dc3545'   // Scrap - Red
+                ]
+            }]
+        };
+        
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: statusData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+    
+    // Request Type Breakdown Chart
+    {% if type_breakdown %}
+    const typeCtx = document.getElementById('typeChart');
+    if (typeCtx) {
+        const typeData = {
+            labels: [
+                {% for item in type_breakdown %}
+                    '{{ item.request_type }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for item in type_breakdown %}
+                        {{ item.count }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#ffc107',  // Corrective - Yellow
+                    '#0d6efd'   // Preventive - Blue
+                ]
+            }]
+        };
+        
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: typeData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

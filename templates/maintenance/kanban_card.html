@@ -1,0 +1,64 @@
+<div class="kanban-card" 
+     data-request-id="{{ maintenance_request.pk }}"
+     {% if maintenance_request.is_overdue %}class="kanban-card overdue"{% else %}class="kanban-card"{% endif %}>
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <h6 class="mb-0">
+            <a href="{% url 'maintenance:detail' maintenance_request.pk %}" 
+               class="text-decoration-none text-dark"
+               onclick="event.stopPropagation();">
+                {{ maintenance_request.subject|truncatewords:8 }}
+            </a>
+        </h6>
+        {% if maintenance_request.is_overdue %}
+            <span class="badge bg-danger">Overdue</span>
+        {% endif %}
+    </div>
+    
+    <div class="mb-2">
+        <small class="text-muted">
+            <i class="bi bi-laptop"></i>
+            <a href="{% url 'equipment:detail' maintenance_request.equipment.pk %}" 
+               class="text-decoration-none"
+               onclick="event.stopPropagation();">
+                {{ maintenance_request.equipment.name|truncatewords:5 }}
+            </a>
+        </small>
+    </div>
+    
+    <div class="mb-2">
+        {% if maintenance_request.request_type == 'Preventive' %}
+            <span class="badge bg-primary">Preventive</span>
+        {% else %}
+            <span class="badge bg-warning text-dark">Corrective</span>
+        {% endif %}
+        
+        {% if maintenance_request.maintenance_team %}
+            <span class="badge bg-info">{{ maintenance_request.maintenance_team.name }}</span>
+        {% endif %}
+    </div>
+    
+    <div class="d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+            <i class="bi bi-person"></i>
+            {% if maintenance_request.assigned_to %}
+                {{ maintenance_request.assigned_to.get_full_name|default:maintenance_request.assigned_to.username|truncatewords:2 }}
+            {% else %}
+                Unassigned
+            {% endif %}
+        </small>
+        <small class="text-muted">
+            <i class="bi bi-calendar3"></i>
+            {{ maintenance_request.created_at|date:"M d" }}
+        </small>
+    </div>
+    
+    {% if maintenance_request.scheduled_date %}
+        <div class="mt-2">
+            <small class="text-muted">
+                <i class="bi bi-clock"></i>
+                Scheduled: {{ maintenance_request.scheduled_date|date:"M d, Y" }}
+            </small>
+        </div>
+    {% endif %}
+</div>
+

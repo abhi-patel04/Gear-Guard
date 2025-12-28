@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Equipment - GearGuard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-laptop"></i>
+                Equipment
+            </h1>
+            <p class="page-subtitle">Manage and track all equipment</p>
+        </div>
+        <a href="{% url 'equipment:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i>
+            Add Equipment
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# Filters and Search #}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            {# Search #}
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="search" 
+                       name="search" 
+                       placeholder="Name, serial number, or location..."
+                       value="{{ search_query }}">
+            </div>
+            
+            {# Department Filter #}
+            <div class="col-md-3">
+                <label for="department" class="form-label">Department</label>
+                <select class="form-select" id="department" name="department">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>
+                            {{ dept }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {# Team Filter #}
+            <div class="col-md-3">
+                <label for="team" class="form-label">Maintenance Team</label>
+                <select class="form-select" id="team" name="team">
+                    <option value="">All Teams</option>
+                    {% for team in teams %}
+                        <option value="{{ team.pk }}" {% if current_team == team.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ team.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {# Show Scrapped #}
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" 
+                           type="checkbox" 
+                           id="show_scrapped" 
+                           name="show_scrapped" 
+                           value="true"
+                           {% if show_scrapped %}checked{% endif %}
+                           onchange="this.form.submit()">
+                    <label class="form-check-label" for="show_scrapped">
+                        Show Scrapped
+                    </label>
+                </div>
+            </div>
+            
+            {# Submit Button #}
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i>
+                    Apply Filters
+                </button>
+                <a href="{% url 'equipment:list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Equipment List #}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul"></i>
+            Equipment List ({{ equipment_list.count }})
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if equipment_list %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Serial Number</th>
+                            <th>Department</th>
+                            <th>Location</th>
+                            <th>Maintenance Team</th>
+                            <th>Assigned To</th>
+                            <th>Status</th>
+                            <th>Active Requests</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for equipment in equipment_list %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'equipment:detail' equipment.pk %}" class="text-decoration-none">
+                                        <strong>{{ equipment.name }}</strong>
+                                    </a>
+                                </td>
+                                <td>{{ equipment.serial_number|default:"—" }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ equipment.department }}</span>
+                                </td>
+                                <td>{{ equipment.location }}</td>
+                                <td>
+                                    {% if equipment.maintenance_team %}
+                                        <span class="badge bg-info">{{ equipment.maintenance_team.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if equipment.assigned_employee %}
+                                        {{ equipment.assigned_employee.get_full_name|default:equipment.assigned_employee.username }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if equipment.is_scrapped %}
+                                        <span class="badge bg-danger">Scrapped</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if equipment.get_active_requests_count > 0 %}
+                                        <span class="badge bg-warning text-dark">
+                                            {{ equipment.get_active_requests_count }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'equipment:detail' equipment.pk %}" 
+                                           class="btn btn-outline-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'equipment:edit' equipment.pk %}" 
+                                           class="btn btn-outline-secondary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No equipment found</h3>
+                <p>{% if search_query or current_department or current_team %}Try adjusting your filters.{% else %}Get started by adding your first piece of equipment.{% endif %}</p>
+                <a href="{% url 'equipment:create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Equipment
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

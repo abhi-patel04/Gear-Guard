@@ -1,0 +1,56 @@
+{# Top Navbar #}
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+        {# Sidebar Toggle Button (mobile) #}
+        <button class="btn btn-link d-md-none" id="sidebarToggleBtn" type="button">
+            <i class="bi bi-list"></i>
+        </button>
+        
+        {# Page Title #}
+        <span class="navbar-brand mb-0 h1 ms-2">
+            {% block page_title %}{% block page_title_content %}GearGuard{% endblock %}{% endblock %}
+        </span>
+        
+        {# Right Side Menu #}
+        <div class="ms-auto d-flex align-items-center">
+            {# User Menu #}
+            {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <button class="btn btn-link text-decoration-none dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i>
+                        <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li>
+                            <h6 class="dropdown-header">
+                                <i class="bi bi-person"></i> {{ user.get_full_name|default:user.username }}
+                            </h6>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="bi bi-person-gear"></i> Profile
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <i class="bi bi-gear"></i> Settings
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            {% else %}
+                <a href="{% url 'accounts:login' %}" class="btn btn-primary">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+

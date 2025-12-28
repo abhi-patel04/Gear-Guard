@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Maintenance Requests - GearGuard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-tools"></i>
+                Maintenance Requests
+            </h1>
+            <p class="page-subtitle">Track and manage maintenance requests</p>
+        </div>
+        <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i>
+            New Request
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# Filters and Search #}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            {# Search #}
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="search" 
+                       name="search" 
+                       placeholder="Subject or description..."
+                       value="{{ search_query }}">
+            </div>
+            
+            {# Status Filter #}
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="New" {% if current_status == 'New' %}selected{% endif %}>New</option>
+                    <option value="In Progress" {% if current_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Repaired" {% if current_status == 'Repaired' %}selected{% endif %}>Repaired</option>
+                    <option value="Scrap" {% if current_status == 'Scrap' %}selected{% endif %}>Scrap</option>
+                </select>
+            </div>
+            
+            {# Request Type Filter #}
+            <div class="col-md-2">
+                <label for="request_type" class="form-label">Type</label>
+                <select class="form-select" id="request_type" name="request_type">
+                    <option value="">All Types</option>
+                    <option value="Corrective" {% if current_request_type == 'Corrective' %}selected{% endif %}>Corrective</option>
+                    <option value="Preventive" {% if current_request_type == 'Preventive' %}selected{% endif %}>Preventive</option>
+                </select>
+            </div>
+            
+            {# Equipment Filter #}
+            <div class="col-md-2">
+                <label for="equipment" class="form-label">Equipment</label>
+                <select class="form-select" id="equipment" name="equipment">
+                    <option value="">All Equipment</option>
+                    {% for eq in equipment_list %}
+                        <option value="{{ eq.pk }}" {% if current_equipment == eq.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ eq.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {# Team Filter #}
+            <div class="col-md-2">
+                <label for="team" class="form-label">Team</label>
+                <select class="form-select" id="team" name="team">
+                    <option value="">All Teams</option>
+                    {% for team in teams %}
+                        <option value="{{ team.pk }}" {% if current_team == team.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ team.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {# Submit Button #}
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i>
+                    Apply Filters
+                </button>
+                <a href="{% url 'maintenance:list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Requests List #}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul"></i>
+            Requests ({{ requests.count }})
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if requests %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Equipment</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Team</th>
+                            <th>Assigned To</th>
+                            <th>Scheduled Date</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'maintenance:detail' req.pk %}" class="text-decoration-none">
+                                        <strong>{{ req.subject }}</strong>
+                                    </a>
+                                    {% if req.is_overdue %}
+                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'equipment:detail' req.equipment.pk %}" class="text-decoration-none">
+                                        {{ req.equipment.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if req.request_type == 'Preventive' %}
+                                        <span class="badge bg-primary">Preventive</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Corrective</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.status == 'New' %}
+                                        <span class="badge badge-status-new">New</span>
+                                    {% elif req.status == 'In Progress' %}
+                                        <span class="badge badge-status-in-progress">In Progress</span>
+                                    {% elif req.status == 'Repaired' %}
+                                        <span class="badge badge-status-repaired">Repaired</span>
+                                    {% elif req.status == 'Scrap' %}
+                                        <span class="badge badge-status-scrap">Scrap</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.maintenance_team %}
+                                        <span class="badge bg-info">{{ req.maintenance_team.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.assigned_to %}
+                                        {{ req.assigned_to.get_full_name|default:req.assigned_to.username }}
+                                    {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.scheduled_date %}
+                                        {{ req.scheduled_date|date:"M d, Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ req.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <a href="{% url 'maintenance:detail' req.pk %}" 
+                                       class="btn btn-sm btn-outline-primary" 
+                                       data-bs-toggle="tooltip" 
+                                       title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No requests found</h3>
+                <p>{% if search_query or current_status or current_request_type %}Try adjusting your filters.{% else %}Get started by creating your first maintenance request.{% endif %}</p>
+                <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Create Request
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
