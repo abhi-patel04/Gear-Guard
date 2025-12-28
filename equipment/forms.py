@@ -10,7 +10,7 @@ Django forms handle:
 - CSRF protection
 """
 from django import forms
-from .models import Equipment
+from .models import Equipment, EquipmentCategory
 from teams.models import MaintenanceTeam
 
 
@@ -29,12 +29,18 @@ class EquipmentForm(forms.ModelForm):
         model = Equipment
         fields = [
             'name',
+            'category',
+            'company',
+            'used_for',
             'serial_number',
-            'department',
             'location',
             'maintenance_team',
             'assigned_employee',
-            'is_scrapped'
+            'acquisition_date',
+            'description',
+            'condition',
+            'is_scrapped',
+            'has_work_order'
         ]
         """
         🔍 EXPLANATION: fields
@@ -47,13 +53,20 @@ class EquipmentForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'e.g., Laptop #123'
             }),
+            'category': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'company': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., My Company (San Francisco)'
+            }),
+            'used_for': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Office work, Production line'
+            }),
             'serial_number': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g., SN123456'
-            }),
-            'department': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., IT, Operations, Sales'
             }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -65,7 +78,22 @@ class EquipmentForm(forms.ModelForm):
             'assigned_employee': forms.Select(attrs={
                 'class': 'form-select'
             }),
+            'acquisition_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Detailed description of the equipment'
+            }),
+            'condition': forms.Select(attrs={
+                'class': 'form-select'
+            }),
             'is_scrapped': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'has_work_order': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
         }
@@ -79,13 +107,19 @@ class EquipmentForm(forms.ModelForm):
         """
         
         labels = {
-            'name': 'Equipment Name',
+            'name': 'Name',
+            'category': 'Equipment Category',
+            'company': 'Company',
+            'used_for': 'Used For',
             'serial_number': 'Serial Number',
-            'department': 'Department',
             'location': 'Location',
             'maintenance_team': 'Maintenance Team',
             'assigned_employee': 'Assigned Employee',
-            'is_scrapped': 'Mark as Scrapped'
+            'acquisition_date': 'Acquisition Date',
+            'description': 'Description',
+            'condition': 'Condition',
+            'is_scrapped': 'Is Scrapped?',
+            'has_work_order': 'Work Order?'
         }
         """
         🔍 EXPLANATION: labels
@@ -115,6 +149,10 @@ class EquipmentForm(forms.ModelForm):
         """
         super().__init__(*args, **kwargs)
         
+        # Filter equipment categories
+        self.fields['category'].queryset = EquipmentCategory.objects.all().order_by('name')
+        self.fields['category'].empty_label = 'Select a category...'
+        
         # Filter maintenance teams (only active teams)
         self.fields['maintenance_team'].queryset = MaintenanceTeam.objects.all().order_by('name')
         self.fields['maintenance_team'].empty_label = 'Select a team...'
@@ -124,8 +162,77 @@ class EquipmentForm(forms.ModelForm):
         self.fields['assigned_employee'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_employee'].empty_label = 'None (unassigned)'
         
-        # Make serial_number optional
+        # Make optional fields
         self.fields['serial_number'].required = False
+        self.fields['category'].required = False
+        self.fields['company'].required = False
+        self.fields['used_for'].required = False
+        self.fields['acquisition_date'].required = False
+        self.fields['description'].required = False
         self.fields['maintenance_team'].required = False
         self.fields['assigned_employee'].required = False
+        self.fields['condition'].required = False
+        self.fields['is_scrapped'].required = False
+        self.fields['has_work_order'].required = False
+        
+        # Ensure Location is required (it's the only required field besides name)
+        self.fields['location'].required = True
+
+
+class EquipmentCategoryForm(forms.ModelForm):
+    """
+    Form for creating and editing EquipmentCategory.
+    
+    🔍 EXPLANATION:
+    ModelForm automatically creates form fields from the model.
+    """
+    
+    class Meta:
+        model = EquipmentCategory
+        fields = [
+            'name',
+            'responsible',
+            'company'
+        ]
+        
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Computers, Software, Monitors'
+            }),
+            'responsible': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'company': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., My Company (San Francisco)'
+            }),
+        }
+        
+        labels = {
+            'name': 'Category Name',
+            'responsible': 'Responsible',
+            'company': 'Company'
+        }
+        
+        help_texts = {
+            'name': 'Name of the equipment category',
+            'responsible': 'User responsible for this category',
+            'company': 'Company name for this category'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        """
+        🔍 EXPLANATION: __init__ method
+        Customizes the form when it's created.
+        """
+        super().__init__(*args, **kwargs)
+        
+        # Filter users (only active users)
+        from django.contrib.auth.models import User
+        self.fields['responsible'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['responsible'].empty_label = 'Select a user...'
+        
+        # Make responsible optional
+        self.fields['responsible'].required = False
 

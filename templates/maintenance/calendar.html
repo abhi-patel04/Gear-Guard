@@ -11,7 +11,7 @@
                 <i class="bi bi-calendar3"></i>
                 Maintenance Calendar
             </h1>
-            <p class="page-subtitle">Scheduled preventive maintenance</p>
+            <p class="page-subtitle">Scheduled preventive maintenance. Click on a date to schedule a new request.</p>
         </div>
         <div>
             <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
@@ -28,6 +28,13 @@
 {% endblock %}
 
 {% block content %}
+{# Calendar Info Alert #}
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-info-circle"></i>
+    <strong>Tip:</strong> Click on any date in the calendar to schedule a new preventive maintenance request for that date.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
 {# Calendar Legend #}
 <div class="card mb-4">
     <div class="card-body">
@@ -120,6 +127,16 @@
         word-wrap: break-word;
     }
     
+    /* Make calendar cells clickable */
+    .fc-daygrid-day:hover {
+        cursor: pointer;
+        background-color: #f8f9fa;
+    }
+    
+    .fc-day-today {
+        background-color: #fff3cd !important;
+    }
+    
     .fc-toolbar-title {
         font-size: 1.5rem;
         font-weight: 600;
@@ -162,6 +179,22 @@ document.addEventListener('DOMContentLoaded', function() {
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
         events: '{% url "maintenance:calendar_events" %}',
+        dateClick: function(info) {
+            // Handle date click to schedule new maintenance request
+            // Format date as YYYY-MM-DDTHH:mm for datetime-local input
+            const clickedDate = info.date;
+            const year = clickedDate.getFullYear();
+            const month = String(clickedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(clickedDate.getDate()).padStart(2, '0');
+            // Default to 9:00 AM if no time is specified (dayGridMonth view)
+            const hour = clickedDate.getHours() !== undefined ? String(clickedDate.getHours()).padStart(2, '0') : '09';
+            const minute = clickedDate.getMinutes() !== undefined ? String(clickedDate.getMinutes()).padStart(2, '0') : '00';
+            const dateTimeString = `${year}-${month}-${day}T${hour}:${minute}`;
+            
+            // Redirect to create request page with scheduled_date and request_type pre-filled
+            const createUrl = '{% url "maintenance:create" %}?scheduled_date=' + encodeURIComponent(dateTimeString) + '&request_type=Preventive';
+            window.location.href = createUrl;
+        },
         eventClick: function(info) {
             // Prevent default navigation
             info.jsEvent.preventDefault();

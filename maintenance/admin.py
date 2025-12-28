@@ -55,7 +55,7 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
     """
     🔍 EXPLANATION: list_filter
     Powerful filtering options in the sidebar.
-    - 'status' = Filter by New, In Progress, Repaired, Scrap
+    - 'status' = Filter by New, In Progress, Repaired, Rejected, Scrap
     - 'request_type' = Filter by Corrective or Preventive
     - 'maintenance_team' = Filter by team
     - 'equipment__department' = Filter by equipment's department (double underscore = related field)
@@ -63,6 +63,7 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
     - 'scheduled_date' = Filter by scheduled date (for preventive)
     
     Example: Click "New" in status filter → Shows only new requests
+    Example: Click "Rejected" in status filter → Shows only rejected requests
     Example: Click "IT" in department filter → Shows only IT equipment requests
     """
     
@@ -117,7 +118,7 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
         }),
         ('Scheduling', {
             'fields': ('scheduled_date',),
-            'description': 'Required for Preventive maintenance. When should this be performed?'
+            'description': 'Set the repair/scheduled date. Required for Preventive maintenance. Can be set for any request type to schedule when maintenance should be performed.'
         }),
         ('Completion', {
             'fields': ('duration_hours', 'completed_at'),
@@ -163,15 +164,101 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
     
     # Actions - Bulk actions
     actions = [
+        'accept_request',
+        'reject_request',
+        'approve_request',  # Keep for backward compatibility
         'mark_as_new',
         'mark_as_in_progress',
         'mark_as_repaired',
+        'mark_as_rejected',
         'mark_as_scrap'
     ]
     """
     🔍 EXPLANATION: actions
     Bulk actions to change status of multiple requests at once.
     """
+    
+    def accept_request(self, request, queryset):
+        """
+        Accept selected requests by marking them as In Progress.
+        This approves the request and moves it to active work.
+        """
+        # Only accept requests that are currently "New"
+        new_requests = queryset.filter(status='New')
+        count = new_requests.update(status='In Progress')
+        if count > 0:
+            self.message_user(
+                request, 
+                f'Successfully accepted {count} request(s). Status changed to "In Progress".',
+                level='success'
+            )
+        else:
+            self.message_user(
+                request,
+                'No "New" requests selected. Only "New" requests can be accepted.',
+                level='warning'
+            )
+    accept_request.short_description = '[ACCEPT] Accept Request (Set to In Progress)'
+    
+    def reject_request(self, request, queryset):
+        """
+        Reject selected requests by marking them as Rejected.
+        Adds a rejection note to the description field.
+        """
+        from django.utils import timezone
+        
+        # Only reject requests that are currently "New"
+        new_requests = queryset.filter(status='New')
+        count = 0
+        
+        for req in new_requests:
+            # Add rejection note to description
+            rejection_note = f"\n\n--- REJECTED ---\nRejected by: {request.user.get_full_name() or request.user.username}\nRejection Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            
+            if req.description:
+                req.description += rejection_note
+            else:
+                req.description = rejection_note.strip()
+            
+            req.status = 'Rejected'
+            req.save()
+            count += 1
+        
+        if count > 0:
+            self.message_user(
+                request, 
+                f'Successfully rejected {count} request(s). Status changed to "Rejected".',
+                level='success'
+            )
+        else:
+            self.message_user(
+                request,
+                'No "New" requests selected. Only "New" requests can be rejected.',
+                level='warning'
+            )
+    reject_request.short_description = '[REJECT] Reject Request'
+    
+    def approve_request(self, request, queryset):
+        """
+        Approve selected requests by marking them as In Progress.
+        This is kept for backward compatibility - same as accept_request.
+        """
+        # Only approve requests that are currently "New"
+        new_requests = queryset.filter(status='New')
+        count = new_requests.update(status='In Progress')
+        if count > 0:
+            self.message_user(
+                request, 
+                f'Successfully approved {count} request(s). Status changed to "In Progress".',
+                level='success'
+            )
+        else:
+            self.message_user(
+                request,
+                'No "New" requests selected. Only "New" requests can be approved.',
+                level='warning'
+            )
+    approve_request.short_description = '[APPROVE] Approve Request (Set to In Progress)'
     
     def mark_as_new(self, request, queryset):
         """Mark selected requests as New."""
@@ -191,6 +278,12 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
         count = queryset.update(status='Repaired', completed_at=timezone.now())
         self.message_user(request, f'{count} requests marked as Repaired.')
     mark_as_repaired.short_description = 'Mark selected as Repaired'
+    
+    def mark_as_rejected(self, request, queryset):
+        """Mark selected requests as Rejected."""
+        count = queryset.update(status='Rejected')
+        self.message_user(request, f'{count} requests marked as Rejected.')
+    mark_as_rejected.short_description = 'Mark selected as Rejected'
     
     def mark_as_scrap(self, request, queryset):
         """

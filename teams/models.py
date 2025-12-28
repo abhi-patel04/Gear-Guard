@@ -48,6 +48,20 @@ class MaintenanceTeam(models.Model):
     - Example values: "IT Support", "Mechanics", "HVAC Team"
     """
     
+    company = models.CharField(
+        max_length=200,
+        default='My Company',
+        help_text="Company name for this team (e.g., 'My Company (San Francisco)')"
+    )
+    """
+    🔍 FIELD EXPLANATION: company
+    - CharField = Text field with maximum length
+    - max_length=200 = Maximum 200 characters
+    - default='My Company' = Default company name
+    - Example values: "My Company", "My Company (San Francisco)"
+    - Used to display company name for each team member
+    """
+    
     members = models.ManyToManyField(
         User,
         related_name='maintenance_teams',

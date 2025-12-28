@@ -7,14 +7,17 @@ These views handle the main dashboard/homepage.
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from datetime import timedelta
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg, F
+from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceRequest
 from teams.models import MaintenanceTeam
 
 
 @login_required
+@never_cache  # Prevent caching to ensure fresh data
 def index(request):
     """
     Dashboard homepage.
@@ -56,12 +59,14 @@ def index(request):
     total_requests = requests_queryset.count()
     open_requests = requests_queryset.filter(status__in=['New', 'In Progress']).count()
     
-    # Overdue Requests
-    overdue_requests = requests_queryset.filter(
+    # Overdue Requests - Calculate directly in database
+    now = timezone.now()
+    overdue_requests_queryset = requests_queryset.filter(
         request_type='Preventive',
-        status__in=['New', 'In Progress']
+        status__in=['New', 'In Progress'],
+        scheduled_date__lt=now
     )
-    overdue_count = sum(1 for req in overdue_requests if req.is_overdue())
+    overdue_count = overdue_requests_queryset.count()
     
     # Completed Today
     today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -80,13 +85,15 @@ def index(request):
         count=Count('id')
     ).order_by('request_type')
     
-    # Recent Requests (last 10)
-    recent_requests = requests_queryset.order_by('-created_at')[:10]
+    # Recent Requests (last 10) - Always fetch fresh data
+    recent_requests = list(requests_queryset.select_related(
+        'equipment', 'equipment__category', 'assigned_to', 'created_by', 'maintenance_team'
+    ).order_by('-created_at')[:10])
     
-    # Recent Completed (last 5)
-    recent_completed = requests_queryset.filter(
+    # Recent Completed (last 5) - Always fetch fresh data
+    recent_completed = list(requests_queryset.filter(
         status='Repaired'
-    ).order_by('-completed_at')[:5]
+    ).select_related('equipment', 'assigned_to').order_by('-completed_at')[:5])
     
     # My Requests (for regular users)
     my_requests = None
@@ -108,6 +115,61 @@ def index(request):
         count=Count('id')
     ).order_by('-count')[:5]
     
+    # Critical Equipment (Health < 30%)
+    # Calculate equipment health based on active requests, condition, and recent maintenance
+    active_equipment = equipment_queryset.filter(is_scrapped=False)
+    
+    # Count equipment with condition='Critical'
+    critical_by_condition = active_equipment.filter(condition='Critical').count()
+    
+    # Count equipment with 3+ active maintenance requests (indicating poor health)
+    equipment_with_many_requests = active_equipment.annotate(
+        active_req_count=Count(
+            'maintenance_requests',
+            filter=Q(maintenance_requests__status__in=['New', 'In Progress'])
+        )
+    ).filter(active_req_count__gte=3).count()
+    
+    # Count equipment with condition='Poor' 
+    poor_condition = active_equipment.filter(condition='Poor').count()
+    
+    # Critical equipment = Critical condition + Poor condition + Equipment with 3+ active requests
+    critical_equipment_count = critical_by_condition + poor_condition + equipment_with_many_requests
+    
+    # Technician Load (Utilization Percentage)
+    # Get all technicians (users in maintenance teams) - dynamic query
+    technicians = User.objects.filter(maintenance_teams__isnull=False).distinct()
+    total_technicians = technicians.count()
+    
+    if total_technicians > 0:
+        # Calculate total active requests assigned to technicians
+        total_active_requests = requests_queryset.filter(
+            status__in=['New', 'In Progress'],
+            assigned_to__isnull=False
+        ).count()
+        
+        # Also count unassigned active requests (they need to be assigned)
+        unassigned_active = requests_queryset.filter(
+            status__in=['New', 'In Progress'],
+            assigned_to__isnull=True
+        ).count()
+        
+        # Total workload = assigned + unassigned
+        total_workload = total_active_requests + unassigned_active
+        
+        # Assume each technician can handle ~5 active requests comfortably
+        # Utilization = (total_workload / (technicians * 5)) * 100
+        max_capacity = total_technicians * 5
+        if max_capacity > 0:
+            technician_load = min(100, int((total_workload / max_capacity) * 100))
+        else:
+            technician_load = 0
+    else:
+        technician_load = 0
+    
+    # Pending requests (open requests)
+    pending_requests = open_requests
+    
     context = {
         # Statistics
         'total_equipment': total_equipment,
@@ -117,6 +179,11 @@ def index(request):
         'overdue_requests': overdue_count,
         'completed_today': completed_today,
         'my_requests': my_requests,
+        
+        # New metrics for wireframe
+        'critical_equipment_count': critical_equipment_count,
+        'technician_load': technician_load,
+        'pending_requests': pending_requests,
         
         # Breakdowns
         'status_breakdown': status_breakdown,

@@ -49,6 +49,7 @@ class MaintenanceRequest(models.Model):
         ('New', 'New'),
         ('In Progress', 'In Progress'),
         ('Repaired', 'Repaired'),
+        ('Rejected', 'Rejected'),
         ('Scrap', 'Scrap'),
     ]
     """
@@ -57,6 +58,7 @@ class MaintenanceRequest(models.Model):
     - 'New' = Request just created, not started
     - 'In Progress' = Technician is working on it
     - 'Repaired' = Completed successfully
+    - 'Rejected' = Request was rejected by admin/manager
     - 'Scrap' = Equipment is beyond repair, mark as scrapped
     
     🔍 HOW IT'S USED:
@@ -163,6 +165,21 @@ class MaintenanceRequest(models.Model):
         default='Corrective',
         help_text="Type of maintenance: Corrective (breakdown) or Preventive (scheduled)"
     )
+    
+    # Priority field from wireframe
+    PRIORITY_CHOICES = [
+        ('Low', 'Low'),
+        ('Medium', 'Medium'),
+        ('High', 'High'),
+        ('Critical', 'Critical'),
+    ]
+    
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='Medium',
+        help_text="Priority level of the maintenance request"
+    )
     """
     🔍 FIELD EXPLANATION: request_type
     - CharField = Text field
@@ -224,6 +241,12 @@ class MaintenanceRequest(models.Model):
         null=True,
         blank=True,
         help_text="Scheduled date/time for preventive maintenance (only for Preventive type)"
+    )
+    
+    due_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Due date for completing this maintenance request"
     )
     """
     🔍 FIELD EXPLANATION: scheduled_date
@@ -369,3 +392,273 @@ class MaintenanceRequest(models.Model):
         if self.duration_hours:
             return f"{self.duration_hours} hours"
         return "Not set"
+
+
+class WorkOrder(models.Model):
+    """
+    Work Order Model
+    
+    🔍 PURPOSE:
+    Represents a work order for maintenance tasks.
+    Work orders can be created from maintenance requests and assigned to employees.
+    """
+    
+    STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('In Progress', 'In Progress'),
+        ('Completed', 'Completed'),
+        ('Cancelled', 'Cancelled'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('Low', 'Low'),
+        ('Medium', 'Medium'),
+        ('High', 'High'),
+        ('Critical', 'Critical'),
+    ]
+    
+    work_order_number = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique work order number"
+    )
+    
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='work_orders',
+        help_text="Equipment this work order is for"
+    )
+    
+    maintenance_request = models.ForeignKey(
+        'MaintenanceRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='work_orders',
+        help_text="Related maintenance request (optional)"
+    )
+    
+    date = models.DateField(
+        help_text="Date of the work order"
+    )
+    
+    time = models.TimeField(
+        help_text="Time of the work order"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='Open',
+        help_text="Current status of the work order"
+    )
+    
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='Medium',
+        help_text="Priority level"
+    )
+    
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_work_orders',
+        help_text="Employee assigned to this work order"
+    )
+    
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the work to be done"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-date', '-time']
+        verbose_name = 'Work Order'
+        verbose_name_plural = 'Work Orders'
+    
+    def __str__(self):
+        return f"WO-{self.work_order_number} - {self.equipment.name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.work_order_number:
+            # Auto-generate work order number
+            from django.db.models import Max
+            last_wo = WorkOrder.objects.aggregate(Max('id'))
+            if last_wo['id__max']:
+                try:
+                    last_obj = WorkOrder.objects.get(id=last_wo['id__max'])
+                    last_num = int(last_obj.work_order_number.split('-')[-1])
+                    self.work_order_number = f"WO-{last_num + 1:04d}"
+                except:
+                    self.work_order_number = f"WO-{WorkOrder.objects.count() + 1:04d}"
+            else:
+                self.work_order_number = "WO-0001"
+        super().save(*args, **kwargs)
+
+
+class Activity(models.Model):
+    """
+    Activity Model
+    
+    🔍 PURPOSE:
+    Represents an activity performed during maintenance work.
+    Activities track what work was done, time spent, costs, and parts used.
+    """
+    
+    ACTIVITY_TYPE_CHOICES = [
+        ('Inspection', 'Inspection'),
+        ('Repair', 'Repair'),
+        ('Replacement', 'Replacement'),
+        ('Cleaning', 'Cleaning'),
+        ('Calibration', 'Calibration'),
+        ('Testing', 'Testing'),
+        ('Other', 'Other'),
+    ]
+    
+    work_order = models.ForeignKey(
+        WorkOrder,
+        on_delete=models.CASCADE,
+        related_name='activities',
+        help_text="Work order this activity belongs to"
+    )
+    
+    activity_type = models.CharField(
+        max_length=50,
+        choices=ACTIVITY_TYPE_CHOICES,
+        help_text="Type of activity performed"
+    )
+    
+    description = models.TextField(
+        help_text="Description of the activity"
+    )
+    
+    start_time = models.DateTimeField(
+        help_text="Start time of the activity"
+    )
+    
+    end_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="End time of the activity"
+    )
+    
+    cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Cost of this activity"
+    )
+    
+    parts_used = models.TextField(
+        blank=True,
+        help_text="Parts or materials used"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-start_time']
+        verbose_name = 'Activity'
+        verbose_name_plural = 'Activities'
+    
+    def __str__(self):
+        return f"{self.get_activity_type_display()} - {self.work_order.work_order_number}"
+    
+    def get_duration(self):
+        """Calculate duration in hours"""
+        if self.end_time and self.start_time:
+            delta = self.end_time - self.start_time
+            return delta.total_seconds() / 3600
+        return None
+
+
+class MaintenanceSession(models.Model):
+    """
+    Maintenance Session Model
+    
+    🔍 PURPOSE:
+    Tracks time spent, cost per hour, and total cost for maintenance work.
+    Used for timesheet and cost tracking.
+    """
+    
+    work_order = models.ForeignKey(
+        WorkOrder,
+        on_delete=models.CASCADE,
+        related_name='maintenance_sessions',
+        help_text="Work order this session belongs to"
+    )
+    
+    date = models.DateField(
+        help_text="Date of the maintenance session"
+    )
+    
+    start_time = models.TimeField(
+        help_text="Start time"
+    )
+    
+    end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="End time"
+    )
+    
+    cost_per_hour = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Cost per hour for this session"
+    )
+    
+    duration_hours = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Duration in hours (hrs:mins format)"
+    )
+    
+    total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Total cost for this session"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-date', '-start_time']
+        verbose_name = 'Maintenance Session'
+        verbose_name_plural = 'Maintenance Sessions'
+    
+    def __str__(self):
+        return f"Session - {self.work_order.work_order_number} - {self.date}"
+    
+    def calculate_total_cost(self):
+        """Calculate total cost based on duration and cost per hour"""
+        if self.duration_hours and self.cost_per_hour:
+            self.total_cost = self.duration_hours * self.cost_per_hour
+        return self.total_cost
+    
+    def save(self, *args, **kwargs):
+        self.calculate_total_cost()
+        super().save(*args, **kwargs)

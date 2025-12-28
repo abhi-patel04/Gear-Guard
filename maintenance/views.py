@@ -9,8 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
-from .models import MaintenanceRequest
-from .forms import MaintenanceRequestForm, StatusUpdateForm
+from .models import MaintenanceRequest, WorkOrder, Activity, MaintenanceSession
+from .forms import MaintenanceRequestForm, StatusUpdateForm, WorkOrderForm, ActivityForm, MaintenanceSessionForm
 
 
 @login_required
@@ -113,6 +113,9 @@ def request_create(request):
             request_obj.save()
             messages.success(request, f'Maintenance request "{request_obj.subject}" created successfully!')
             return redirect('maintenance:detail', pk=request_obj.pk)
+        else:
+            # Form is invalid - show error messages
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = MaintenanceRequestForm()
         
@@ -128,6 +131,23 @@ def request_create(request):
                     form.fields['maintenance_team'].initial = equipment.maintenance_team
             except Equipment.DoesNotExist:
                 pass
+        
+        # Pre-fill scheduled_date if passed in URL (from calendar date click)
+        scheduled_date = request.GET.get('scheduled_date')
+        if scheduled_date:
+            try:
+                from django.utils.dateparse import parse_datetime
+                parsed_date = parse_datetime(scheduled_date)
+                if parsed_date:
+                    # Format as datetime-local string: YYYY-MM-DDTHH:mm
+                    form.fields['scheduled_date'].initial = parsed_date.strftime('%Y-%m-%dT%H:%M')
+            except (ValueError, AttributeError):
+                pass
+        
+        # Pre-select request_type if passed in URL (from calendar - should be Preventive)
+        request_type = request.GET.get('request_type')
+        if request_type in dict(MaintenanceRequest.REQUEST_TYPE_CHOICES):
+            form.fields['request_type'].initial = request_type
     
     context = {
         'form': form,
@@ -335,3 +355,194 @@ def calendar_events(request):
         })
     
     return JsonResponse(events, safe=False)
+
+
+@login_required
+def team_members_api(request, team_id):
+    """
+    JSON endpoint for fetching team members.
+    
+    🔍 EXPLANATION:
+    - Returns list of team members as JSON
+    - Used by JavaScript to filter technician dropdown
+    - Implements workflow logic: only team members can be assigned
+    """
+    from django.http import JsonResponse
+    from teams.models import MaintenanceTeam
+    
+    try:
+        team = MaintenanceTeam.objects.get(pk=team_id)
+        members = team.members.filter(is_active=True).order_by('username')
+        
+        members_list = []
+        for member in members:
+            members_list.append({
+                'id': member.pk,
+                'username': member.username,
+                'full_name': member.get_full_name() or member.username,
+                'email': member.email or '',
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'members': members_list
+        })
+    except MaintenanceTeam.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Team not found'
+        }, status=404)
+
+
+# Work Order Views
+@login_required
+def workorder_list(request):
+    """List all work orders."""
+    work_orders = WorkOrder.objects.all().order_by('-date', '-time')
+    
+    # Filters
+    status = request.GET.get('status')
+    if status:
+        work_orders = work_orders.filter(status=status)
+    
+    priority = request.GET.get('priority')
+    if priority:
+        work_orders = work_orders.filter(priority=priority)
+    
+    assigned_to = request.GET.get('assigned_to')
+    if assigned_to:
+        work_orders = work_orders.filter(assigned_to_id=assigned_to)
+    
+    context = {
+        'work_orders': work_orders,
+        'status_filter': status,
+        'priority_filter': priority,
+        'assigned_filter': assigned_to,
+    }
+    return render(request, 'maintenance/workorder_list.html', context)
+
+
+@login_required
+def workorder_create(request):
+    """Create new work order."""
+    if request.method == 'POST':
+        form = WorkOrderForm(request.POST)
+        if form.is_valid():
+            work_order = form.save()
+            messages.success(request, f'Work order {work_order.work_order_number} created successfully!')
+            return redirect('maintenance:workorder_detail', pk=work_order.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = WorkOrderForm()
+        # Pre-fill equipment if provided
+        equipment_id = request.GET.get('equipment')
+        if equipment_id:
+            try:
+                from equipment.models import Equipment
+                equipment = Equipment.objects.get(pk=equipment_id)
+                form.fields['equipment'].initial = equipment
+            except:
+                pass
+    
+    context = {
+        'form': form,
+        'title': 'Create Work Order'
+    }
+    return render(request, 'maintenance/workorder_form.html', context)
+
+
+@login_required
+def workorder_detail(request, pk):
+    """View work order details with activities and sessions."""
+    from django.db.models import Sum
+    work_order = get_object_or_404(WorkOrder, pk=pk)
+    activities = work_order.activities.all().order_by('-start_time')
+    sessions = work_order.maintenance_sessions.all().order_by('-date', '-start_time')
+    
+    # Calculate total cost
+    total_cost = sessions.aggregate(Sum('total_cost'))['total_cost__sum'] or 0
+    
+    context = {
+        'work_order': work_order,
+        'activities': activities,
+        'sessions': sessions,
+        'total_cost': total_cost,
+    }
+    return render(request, 'maintenance/workorder_detail.html', context)
+
+
+@login_required
+def workorder_edit(request, pk):
+    """Edit work order."""
+    work_order = get_object_or_404(WorkOrder, pk=pk)
+    
+    if request.method == 'POST':
+        form = WorkOrderForm(request.POST, instance=work_order)
+        if form.is_valid():
+            work_order = form.save()
+            messages.success(request, f'Work order {work_order.work_order_number} updated successfully!')
+            return redirect('maintenance:workorder_detail', pk=work_order.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = WorkOrderForm(instance=work_order)
+    
+    context = {
+        'form': form,
+        'work_order': work_order,
+        'title': 'Edit Work Order'
+    }
+    return render(request, 'maintenance/workorder_form.html', context)
+
+
+@login_required
+def activity_create(request, workorder_pk):
+    """Create activity for a work order."""
+    work_order = get_object_or_404(WorkOrder, pk=workorder_pk)
+    
+    if request.method == 'POST':
+        form = ActivityForm(request.POST)
+        if form.is_valid():
+            activity = form.save(commit=False)
+            activity.work_order = work_order
+            activity.save()
+            messages.success(request, 'Activity added successfully!')
+            return redirect('maintenance:workorder_detail', pk=work_order.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ActivityForm()
+    
+    context = {
+        'form': form,
+        'work_order': work_order,
+        'title': 'Add Activity'
+    }
+    return render(request, 'maintenance/activity_form.html', context)
+
+
+@login_required
+def session_create(request, workorder_pk):
+    """Create maintenance session for a work order."""
+    work_order = get_object_or_404(WorkOrder, pk=workorder_pk)
+    
+    if request.method == 'POST':
+        form = MaintenanceSessionForm(request.POST)
+        if form.is_valid():
+            session = form.save(commit=False)
+            session.work_order = work_order
+            session.save()
+            messages.success(request, 'Maintenance session added successfully!')
+            return redirect('maintenance:workorder_detail', pk=work_order.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = MaintenanceSessionForm()
+    
+    context = {
+        'form': form,
+        'work_order': work_order,
+        'title': 'Add Maintenance Session'
+    }
+    return render(request, 'maintenance/session_form.html', context)

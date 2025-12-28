@@ -85,6 +85,57 @@ class Equipment(models.Model):
     - Used for: Finding equipment, technician navigation, reports
     """
     
+    # New fields from wireframe
+    category = models.ForeignKey(
+        'EquipmentCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='equipment',
+        help_text="Equipment category (e.g., Computers, Software, Monitors)"
+    )
+    
+    company = models.CharField(
+        max_length=200,
+        default='My Company (San Francisco)',
+        help_text="Company name for this equipment"
+    )
+    
+    used_for = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="What this equipment is used for"
+    )
+    
+    acquisition_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date when equipment was acquired"
+    )
+    
+    condition = models.CharField(
+        max_length=50,
+        choices=[
+            ('Excellent', 'Excellent'),
+            ('Good', 'Good'),
+            ('Fair', 'Fair'),
+            ('Poor', 'Poor'),
+            ('Critical', 'Critical'),
+        ],
+        default='Good',
+        help_text="Current condition of the equipment"
+    )
+    
+    has_work_order = models.BooleanField(
+        default=False,
+        help_text="Whether this equipment has an associated work order"
+    )
+    
+    description = models.TextField(
+        blank=True,
+        help_text="Detailed description of the equipment"
+    )
+    
     # Relationships
     maintenance_team = models.ForeignKey(
         MaintenanceTeam,
@@ -208,3 +259,80 @@ class Equipment(models.Model):
         - In request form: Validate that equipment is not scrapped
         """
         return not self.is_scrapped
+
+
+class EquipmentCategory(models.Model):
+    """
+    Equipment Category Model
+    
+    🔍 PURPOSE:
+    Represents categories/types of equipment (e.g., "Computers", "Software", "Monitors").
+    Used to organize and classify equipment for better management.
+    
+    🔍 REAL-WORLD EXAMPLE:
+    - Company has equipment categories: "Computers", "Software", "Monitors"
+    - Each category has a responsible person
+    - Categories help organize equipment by type
+    """
+    
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Category name (e.g., 'Computers', 'Software', 'Monitors')"
+    )
+    """
+    🔍 FIELD EXPLANATION: name
+    - CharField = Text field
+    - max_length=200 = Maximum 200 characters
+    - unique=True = No two categories can have the same name
+    - Example: "Computers", "Software", "Monitors", "Vehicles"
+    """
+    
+    responsible = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responsible_categories',
+        help_text="User responsible for this equipment category"
+    )
+    """
+    🔍 FIELD EXPLANATION: responsible
+    - ForeignKey = Links to User model
+    - on_delete=models.SET_NULL = If user is deleted, set to NULL
+    - null=True, blank=True = Optional (category might not have a responsible person yet)
+    - related_name='responsible_categories' = Access user's categories with: user.responsible_categories.all()
+    """
+    
+    company = models.CharField(
+        max_length=200,
+        default='My Company (San Francisco)',
+        help_text="Company name for this category"
+    )
+    """
+    🔍 FIELD EXPLANATION: company
+    - CharField = Text field
+    - max_length=200 = Maximum 200 characters
+    - default='My Company (San Francisco)' = Default company name
+    - Example: "My Company (San Francisco)", "My Company (New York)"
+    """
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        """
+        🔍 EXPLANATION: Meta class
+        Provides metadata about the model.
+        """
+        ordering = ['name']  # Alphabetical order
+        verbose_name = 'Equipment Category'
+        verbose_name_plural = 'Equipment Categories'
+    
+    def __str__(self):
+        """
+        🔍 EXPLANATION: __str__ method
+        Returns string representation for admin panel and forms.
+        """
+        return self.name

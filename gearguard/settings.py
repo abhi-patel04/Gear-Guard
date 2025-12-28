@@ -29,7 +29,9 @@ SECRET_KEY = 'django-insecure-djpm$*6-qshtfq7%pfr8wmdn&49&i20=gvg+eo%&2fo03bb%=o
 # DEBUG = True shows detailed error pages (helpful for development)
 DEBUG = True
 
-ALLOWED_HOSTS = []  # In production, add your domain here
+import os
+# This tells Django: "Look at the Render Dashboard first, or use localhost"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
 
 
 # Application definition

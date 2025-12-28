@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Work Orders - GearGuard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-clipboard-check"></i>
+                Work Order List
+            </h1>
+            <p class="page-subtitle">Manage and track work orders for maintenance requests</p>
+        </div>
+        <a href="{% url 'maintenance:workorder_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i>
+            Create Work Order
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# Filters #}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option>
+                    <option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="priority" class="form-label">Priority</label>
+                <select class="form-select" id="priority" name="priority">
+                    <option value="">All Priorities</option>
+                    <option value="Low" {% if priority_filter == 'Low' %}selected{% endif %}>Low</option>
+                    <option value="Medium" {% if priority_filter == 'Medium' %}selected{% endif %}>Medium</option>
+                    <option value="High" {% if priority_filter == 'High' %}selected{% endif %}>High</option>
+                    <option value="Critical" {% if priority_filter == 'Critical' %}selected{% endif %}>Critical</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block">
+                    <i class="bi bi-search"></i>
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Work Orders Table #}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul"></i>
+            Work Orders ({{ work_orders.count }})
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if work_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Work Order</th>
+                            <th>Equipment</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Assigned To</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in work_orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'maintenance:workorder_detail' wo.pk %}" class="text-decoration-none">
+                                        <strong>{{ wo.work_order_number }}</strong>
+                                    </a>
+                                </td>
+                                <td>{{ wo.equipment.name }}</td>
+                                <td>{{ wo.date|date:"M d, Y" }}</td>
+                                <td>{{ wo.time|time:"H:i" }}</td>
+                                <td>
+                                    {% if wo.status == 'Open' %}
+                                        <span class="badge bg-info">Open</span>
+                                    {% elif wo.status == 'In Progress' %}
+                                        <span class="badge bg-warning text-dark">In Progress</span>
+                                    {% elif wo.status == 'Completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif wo.status == 'Cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if wo.priority == 'Critical' %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elif wo.priority == 'High' %}
+                                        <span class="badge bg-warning text-dark">High</span>
+                                    {% elif wo.priority == 'Medium' %}
+                                        <span class="badge bg-info">Medium</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Low</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if wo.assigned_to %}
+                                        {{ wo.assigned_to.get_full_name|default:wo.assigned_to.username }}
+                                    {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'maintenance:workorder_detail' wo.pk %}" 
+                                           class="btn btn-outline-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View/Edit">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No work orders found</h3>
+                <p>Get started by creating your first work order.</p>
+                <a href="{% url 'maintenance:workorder_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Create Work Order
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

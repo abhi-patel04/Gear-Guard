@@ -8,8 +8,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
-from .models import Equipment
-from .forms import EquipmentForm
+from .models import Equipment, EquipmentCategory
+from .forms import EquipmentForm, EquipmentCategoryForm
 
 
 @login_required
@@ -168,3 +168,100 @@ def equipment_edit(request, pk):
         'title': 'Edit Equipment',
     }
     return render(request, 'equipment/form.html', context)
+
+
+@login_required
+def category_list(request):
+    """
+    List all equipment categories.
+    
+    🔍 EXPLANATION:
+    - Shows all equipment categories in the system
+    - Displays name, responsible person, and company
+    """
+    categories = EquipmentCategory.objects.all().order_by('name')
+    
+    context = {
+        'categories': categories,
+    }
+    return render(request, 'equipment/category_list.html', context)
+
+
+@login_required
+def category_create(request):
+    """
+    Create new equipment category.
+    
+    🔍 EXPLANATION:
+    - Shows form to create new category
+    - Saves category and redirects to category list
+    """
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Equipment category "{category.name}" created successfully!')
+            return redirect('equipment:category_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = EquipmentCategoryForm()
+    
+    context = {
+        'form': form,
+        'title': 'Create Equipment Category',
+    }
+    return render(request, 'equipment/category_form.html', context)
+
+
+@login_required
+def category_edit(request, pk):
+    """
+    Edit existing equipment category.
+    
+    🔍 EXPLANATION:
+    - Shows form to edit category
+    - Updates category and redirects to category list
+    """
+    category = get_object_or_404(EquipmentCategory, pk=pk)
+    
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Equipment category "{category.name}" updated successfully!')
+            return redirect('equipment:category_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = EquipmentCategoryForm(instance=category)
+    
+    context = {
+        'form': form,
+        'category': category,
+        'title': 'Edit Equipment Category',
+    }
+    return render(request, 'equipment/category_form.html', context)
+
+
+@login_required
+def category_delete(request, pk):
+    """
+    Delete equipment category.
+    
+    🔍 EXPLANATION:
+    - Deletes category after confirmation
+    - Redirects to category list
+    """
+    category = get_object_or_404(EquipmentCategory, pk=pk)
+    
+    if request.method == 'POST':
+        category_name = category.name
+        category.delete()
+        messages.success(request, f'Equipment category "{category_name}" deleted successfully!')
+        return redirect('equipment:category_list')
+    
+    context = {
+        'category': category,
+    }
+    return render(request, 'equipment/category_delete.html', context)

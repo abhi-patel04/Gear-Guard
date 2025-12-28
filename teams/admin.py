@@ -26,7 +26,7 @@ class MaintenanceTeamAdmin(admin.ModelAdmin):
     """
     
     # List Display - What columns to show in the list view
-    list_display = ['name', 'get_member_count', 'get_active_requests_count', 'created_at']
+    list_display = ['name', 'company', 'get_member_count', 'get_active_requests_count', 'created_at']
     """
     🔍 EXPLANATION: list_display
     Defines which columns appear in the admin list view.
@@ -53,7 +53,7 @@ class MaintenanceTeamAdmin(admin.ModelAdmin):
     """
     
     # Search Fields - Search bar at the top
-    search_fields = ['name']
+    search_fields = ['name', 'company']
     """
     🔍 EXPLANATION: search_fields
     Adds a search box at the top of the list view.
@@ -77,7 +77,7 @@ class MaintenanceTeamAdmin(admin.ModelAdmin):
     # Fieldsets - Group related fields together
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name',)
+            'fields': ('name', 'company')
         }),
         ('Team Members', {
             'fields': ('members',),

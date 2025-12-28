@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Work Order {{ work_order.work_order_number }} - GearGuard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-clipboard-check"></i>
+                Work Order {{ work_order.work_order_number }}
+            </h1>
+            <p class="page-subtitle">Work order details and timesheet</p>
+        </div>
+        <div>
+            <a href="{% url 'maintenance:workorder_edit' work_order.pk %}" class="btn btn-secondary">
+                <i class="bi bi-pencil"></i>
+                Edit
+            </a>
+            <a href="{% url 'maintenance:workorder_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Back to List
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Work Order Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Work Order:</th>
+                                <td><strong>{{ work_order.work_order_number }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Equipment:</th>
+                                <td>{{ work_order.equipment.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Date:</th>
+                                <td>{{ work_order.date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Time:</th>
+                                <td>{{ work_order.time|time:"H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Status:</th>
+                                <td>
+                                    {% if work_order.status == 'Open' %}
+                                        <span class="badge bg-info">Open</span>
+                                    {% elif work_order.status == 'In Progress' %}
+                                        <span class="badge bg-warning text-dark">In Progress</span>
+                                    {% elif work_order.status == 'Completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif work_order.status == 'Cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Priority:</th>
+                                <td>
+                                    {% if work_order.priority == 'Critical' %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% elif work_order.priority == 'High' %}
+                                        <span class="badge bg-warning text-dark">High</span>
+                                    {% elif work_order.priority == 'Medium' %}
+                                        <span class="badge bg-info">Medium</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Low</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Assigned To:</th>
+                                <td>
+                                    {% if work_order.assigned_to %}
+                                        {{ work_order.assigned_to.get_full_name|default:work_order.assigned_to.username }}
+                                    {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if work_order.description %}
+                            <tr>
+                                <th>Description:</th>
+                                <td>{{ work_order.description }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Activities Section #}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Activities</h5>
+                <a href="{% url 'maintenance:activity_create' work_order.pk %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Activity
+                </a>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Activity Type</th>
+                                    <th>Description</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Cost</th>
+                                    <th>Parts Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in activities %}
+                                    <tr>
+                                        <td>{{ activity.get_activity_type_display }}</td>
+                                        <td>{{ activity.description|truncatewords:10 }}</td>
+                                        <td>{{ activity.start_time|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            {% if activity.end_time %}
+                                                {{ activity.end_time|date:"M d, Y H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>${{ activity.cost|floatformat:2 }}</td>
+                                        <td>{{ activity.parts_used|truncatewords:5|default:"—" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No activities yet. <a href="{% url 'maintenance:activity_create' work_order.pk %}">Add an activity</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Maintenance Sessions / Timesheet #}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Maintenance Sessions / Timesheet</h5>
+                <a href="{% url 'maintenance:session_create' work_order.pk %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Session
+                </a>
+            </div>
+            <div class="card-body">
+                {% if sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Cost per hour</th>
+                                    <th>Duration (hrs:mins)</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in sessions %}
+                                    <tr>
+                                        <td>{{ session.date|date:"M d, Y" }}</td>
+                                        <td>{{ session.start_time|time:"H:i" }}</td>
+                                        <td>
+                                            {% if session.end_time %}
+                                                {{ session.end_time|time:"H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>${{ session.cost_per_hour|floatformat:2 }}</td>
+                                        <td>
+                                            {% if session.duration_hours %}
+                                                {{ session.duration_hours }} hrs
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><strong>${{ session.total_cost|floatformat:2 }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="5" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>${{ total_cost|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No maintenance sessions yet. <a href="{% url 'maintenance:session_create' work_order.pk %}">Add a session</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

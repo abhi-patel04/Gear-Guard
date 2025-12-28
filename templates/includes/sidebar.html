@@ -27,6 +27,14 @@
             </a>
         </li>
         
+        {# Equipment Categories #}
+        <li class="sidebar-item">
+            <a href="{% url 'equipment:category_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'category_list' or request.resolver_match.url_name == 'category_create' or request.resolver_match.url_name == 'category_edit' or request.resolver_match.url_name == 'category_delete' %}active{% endif %}">
+                <i class="bi bi-tags"></i>
+                <span>Equipment Categories</span>
+            </a>
+        </li>
+        
         {# Maintenance Requests #}
         <li class="sidebar-item">
             <a href="{% url 'maintenance:list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'maintenance' %}active{% endif %}">
@@ -48,6 +56,14 @@
             <a href="{% url 'maintenance:calendar' %}" class="sidebar-link">
                 <i class="bi bi-calendar3"></i>
                 <span>Calendar</span>
+            </a>
+        </li>
+        
+        {# Work Orders #}
+        <li class="sidebar-item">
+            <a href="{% url 'maintenance:workorder_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'workorder_list' or request.resolver_match.url_name == 'workorder_create' or request.resolver_match.url_name == 'workorder_detail' or request.resolver_match.url_name == 'workorder_edit' %}active{% endif %}">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Work Orders</span>
             </a>
         </li>
         

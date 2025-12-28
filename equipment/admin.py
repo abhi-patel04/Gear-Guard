@@ -5,7 +5,7 @@ Admin configuration for equipment app.
 This file customizes how Equipment appears in the Django admin panel.
 """
 from django.contrib import admin
-from .models import Equipment
+from .models import Equipment, EquipmentCategory
 
 
 @admin.register(Equipment)
@@ -149,3 +149,45 @@ class EquipmentAdmin(admin.ModelAdmin):
     
     # Enable autocomplete for this model (used by MaintenanceRequest admin)
     search_fields = ['name', 'serial_number']  # Already defined above, but needed for autocomplete
+
+
+@admin.register(EquipmentCategory)
+class EquipmentCategoryAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for EquipmentCategory model.
+    """
+    
+    # List Display - What columns to show
+    list_display = [
+        'name',
+        'responsible',
+        'company',
+        'created_at'
+    ]
+    
+    # Filters - Sidebar filters
+    list_filter = [
+        'company',
+        'responsible',
+        'created_at'
+    ]
+    
+    # Search Fields
+    search_fields = [
+        'name',
+        'company'
+    ]
+    
+    # Fieldsets - Group fields in the edit form
+    fieldsets = (
+        ('Category Information', {
+            'fields': ('name', 'responsible', 'company')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    # Read-only fields
+    readonly_fields = ['created_at', 'updated_at']

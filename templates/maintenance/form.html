@@ -33,13 +33,34 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form method="post" novalidate>
+                <form method="post" novalidate id="maintenanceRequestForm">
                     {% csrf_token %}
                     
                     {# Display form errors #}
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger">
-                            {{ form.non_field_errors }}
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Please correct the following errors:</strong>
+                            <ul class="mb-0 mt-2">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    {# Display field-level errors at top #}
+                    {% if form.errors %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Please correct the errors below:</strong>
+                            <ul class="mb-0 mt-2">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
                         </div>
                     {% endif %}
                     
@@ -107,11 +128,20 @@
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="{{ form.request_type.id_for_label }}" class="form-label">
+                                <label class="form-label">
                                     {{ form.request_type.label }}
                                     <span class="text-danger">*</span>
                                 </label>
-                                {{ form.request_type }}
+                                <div class="mt-2">
+                                    {% for radio in form.request_type %}
+                                        <div class="form-check">
+                                            {{ radio.tag }}
+                                            <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                                {{ radio.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
                                 {% if form.request_type.errors %}
                                     <div class="text-danger small">{{ form.request_type.errors.0 }}</div>
                                 {% endif %}
@@ -131,6 +161,21 @@
                                 {% endif %}
                             </div>
                         </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.priority.id_for_label }}" class="form-label">
+                                    {{ form.priority.label }}
+                                </label>
+                                {{ form.priority }}
+                                {% if form.priority.errors %}
+                                    <div class="text-danger small">{{ form.priority.errors.0 }}</div>
+                                {% endif %}
+                                {% if form.priority.help_text %}
+                                    <small class="form-text text-muted">{{ form.priority.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                     
                     {# Assignment & Scheduling #}
@@ -146,6 +191,9 @@
                                 {% if form.assigned_to.errors %}
                                     <div class="text-danger small">{{ form.assigned_to.errors.0 }}</div>
                                 {% endif %}
+                                {% if form.assigned_to.help_text %}
+                                    <small class="form-text text-muted">{{ form.assigned_to.help_text }}</small>
+                                {% endif %}
                             </div>
                             
                             <div class="col-md-6 mb-3">
@@ -158,6 +206,21 @@
                                 {% endif %}
                                 {% if form.scheduled_date.help_text %}
                                     <small class="form-text text-muted">{{ form.scheduled_date.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.due_date.id_for_label }}" class="form-label">
+                                    {{ form.due_date.label }}
+                                </label>
+                                {{ form.due_date }}
+                                {% if form.due_date.errors %}
+                                    <div class="text-danger small">{{ form.due_date.errors.0 }}</div>
+                                {% endif %}
+                                {% if form.due_date.help_text %}
+                                    <small class="form-text text-muted">{{ form.due_date.help_text }}</small>
                                 {% endif %}
                             </div>
                         </div>
@@ -202,29 +265,92 @@
 
 {% block extra_js %}
 <script>
-    // Auto-fill maintenance team when equipment is selected
+    // Auto-fill maintenance team when equipment is selected and filter technicians based on team
     document.addEventListener('DOMContentLoaded', function() {
         const equipmentSelect = document.getElementById('id_equipment');
         const teamSelect = document.getElementById('id_maintenance_team');
-        const requestTypeSelect = document.getElementById('id_request_type');
+        const assignedToSelect = document.getElementById('id_assigned_to');
+        const requestTypeRadios = document.querySelectorAll('input[name="request_type"]');
         const scheduledDateField = document.getElementById('id_scheduled_date');
         
-        // Auto-fill team from equipment
+        // Function to update technician dropdown based on selected team (workflow logic)
+        function updateTechnicianDropdown(teamId) {
+            if (!assignedToSelect) return;
+            
+            // Clear current options except the first (empty) option
+            const currentValue = assignedToSelect.value;
+            assignedToSelect.innerHTML = '<option value="">Unassigned</option>';
+            
+            if (teamId) {
+                // Fetch team members via AJAX
+                fetch(`{% url 'maintenance:team_members_api' team_id=0 %}`.replace('0', teamId))
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.members.length > 0) {
+                            data.members.forEach(member => {
+                                const option = document.createElement('option');
+                                option.value = member.id;
+                                option.textContent = member.full_name + ' (' + member.username + ')';
+                                assignedToSelect.appendChild(option);
+                            });
+                            // Try to restore previous selection if it's still valid
+                            if (currentValue) {
+                                assignedToSelect.value = currentValue;
+                                // If value wasn't restored (not in team), select first empty option
+                                if (!assignedToSelect.value) {
+                                    assignedToSelect.value = '';
+                                }
+                            }
+                        } else {
+                            // No team members found
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No team members available';
+                            assignedToSelect.appendChild(option);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching team members:', error);
+                        // Show all users as fallback
+                        assignedToSelect.innerHTML = '<option value="">Error loading team members</option>';
+                    });
+            } else {
+                // No team selected - could show all users or leave empty
+                // For workflow logic, we keep it empty until team is selected
+                assignedToSelect.innerHTML = '<option value="">Select a team first</option>';
+            }
+        }
+        
+        // Auto-fill team from equipment and update technicians
         if (equipmentSelect && teamSelect) {
             equipmentSelect.addEventListener('change', function() {
                 const equipmentId = this.value;
                 if (equipmentId) {
-                    // Fetch equipment details via AJAX (simplified - in production, use proper API)
-                    // For now, we'll rely on server-side auto-fill
-                    // This is a placeholder for future enhancement
+                    // This would ideally fetch equipment details via AJAX
+                    // For now, rely on server-side auto-fill on form submit
+                    // But we can trigger team change event if team field gets updated
                 }
             });
         }
         
-        // Show/hide scheduled_date based on request_type
-        if (requestTypeSelect && scheduledDateField) {
+        // Update technician dropdown when team changes (workflow logic implementation)
+        if (teamSelect && assignedToSelect) {
+            teamSelect.addEventListener('change', function() {
+                const teamId = this.value;
+                updateTechnicianDropdown(teamId);
+            });
+            
+            // Initial load: update technicians if team is already selected
+            if (teamSelect.value) {
+                updateTechnicianDropdown(teamSelect.value);
+            }
+        }
+        
+        // Show/hide scheduled_date based on request_type (for radio buttons)
+        if (requestTypeRadios.length > 0 && scheduledDateField) {
             function toggleScheduledDate() {
-                const requestType = requestTypeSelect.value;
+                const selectedRadio = document.querySelector('input[name="request_type"]:checked');
+                const requestType = selectedRadio ? selectedRadio.value : '';
                 const scheduledDateGroup = scheduledDateField.closest('.mb-3');
                 if (requestType === 'Preventive') {
                     scheduledDateGroup.style.display = 'block';
@@ -235,10 +361,14 @@
                 }
             }
             
-            requestTypeSelect.addEventListener('change', toggleScheduledDate);
+            // Add event listener to each radio button
+            requestTypeRadios.forEach(radio => {
+                radio.addEventListener('change', toggleScheduledDate);
+            });
             toggleScheduledDate(); // Initial check
         }
     });
 </script>
 {% endblock %}
+
 

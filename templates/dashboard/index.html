@@ -5,88 +5,127 @@
 
 {% block page_header %}
 <div class="page-header">
-    <h1 class="page-title">
-        <i class="bi bi-speedometer2"></i>
-        Dashboard
-    </h1>
-    <p class="page-subtitle">Overview of your maintenance operations</p>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-speedometer2"></i>
+                Dashboard
+            </h1>
+            <p class="page-subtitle">Overview of your maintenance operations</p>
+        </div>
+        <a href="{% url 'dashboard:index' %}" class="btn btn-sm btn-outline-secondary" title="Refresh Dashboard">
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </a>
+    </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="row">
-    {# Statistics Cards #}
-    <div class="col-md-3 mb-4">
-        <div class="card">
-            <div class="card-body stat-card">
-                <i class="bi bi-laptop" style="font-size: 2rem; color: #0d6efd;"></i>
-                <div class="stat-value">{{ total_equipment }}</div>
-                <div class="stat-label">Total Equipment</div>
+{# Top Section: New Button and Search Bar #}
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i>
+            New
+        </a>
+        <div class="flex-grow-1 ms-3">
+            <form method="get" action="{% url 'maintenance:list' %}" class="d-flex">
+                <input type="text" 
+                       class="form-control" 
+                       name="search" 
+                       placeholder="Q Search..." 
+                       value="{{ request.GET.search }}">
+                <button type="submit" class="btn btn-outline-secondary ms-2">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Summary Cards - Three Cards as per Wireframe #}
+<div class="row mb-4">
+    {# Critical Equipment Card (Red) #}
+    <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm" style="background-color: #dc3545; color: white;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2" style="color: rgba(255,255,255,0.9);">Critical Equipment</h6>
+                <div class="d-flex align-items-baseline">
+                    <h2 class="card-title mb-0 me-2" style="font-size: 2.5rem; font-weight: bold;">{{ critical_equipment_count }}</h2>
+                    <span class="text-white-50">Units</span>
+                </div>
+                <p class="card-text mb-0 mt-2" style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                    (Health &lt; 30%)
+                </p>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3 mb-4">
-        <div class="card">
-            <div class="card-body stat-card">
-                <i class="bi bi-tools" style="font-size: 2rem; color: #ffc107;"></i>
-                <div class="stat-value">{{ open_requests }}</div>
-                <div class="stat-label">Open Requests</div>
+    {# Technician Load Card (Blue) #}
+    <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm" style="background-color: #0d6efd; color: white;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2" style="color: rgba(255,255,255,0.9);">Technician Load</h6>
+                <div class="d-flex align-items-baseline">
+                    <h2 class="card-title mb-0 me-2" style="font-size: 2.5rem; font-weight: bold;">{{ technician_load }}%</h2>
+                    <span class="text-white-50">Utilized</span>
+                </div>
+                <p class="card-text mb-0 mt-2" style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                    (Assign Carefully)
+                </p>
             </div>
         </div>
     </div>
     
-    <div class="col-md-3 mb-4">
-        <div class="card">
-            <div class="card-body stat-card">
-                <i class="bi bi-exclamation-triangle" style="font-size: 2rem; color: #dc3545;"></i>
-                <div class="stat-value">{{ overdue_requests }}</div>
-                <div class="stat-label">Overdue Requests</div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card">
-            <div class="card-body stat-card">
-                <i class="bi bi-check-circle" style="font-size: 2rem; color: #198754;"></i>
-                <div class="stat-value">{{ completed_today }}</div>
-                <div class="stat-label">Completed Today</div>
+    {# Open Requests Card (Green) #}
+    <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm" style="background-color: #198754; color: white;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2" style="color: rgba(255,255,255,0.9);">Open Requests</h6>
+                <div class="d-flex align-items-baseline">
+                    <h2 class="card-title mb-0 me-2" style="font-size: 2.5rem; font-weight: bold;">{{ pending_requests }}</h2>
+                    <span class="text-white-50">Pending</span>
+                </div>
+                <p class="card-text mb-0 mt-2" style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+                    {{ overdue_requests }} Overdue
+                </p>
             </div>
         </div>
     </div>
 </div>
 
+{# Requests Table - Matching Wireframe Columns #}
 <div class="row">
-    {# Recent Activity #}
-    <div class="col-md-8 mb-4">
+    <div class="col-md-12 mb-4">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-clock-history"></i>
-                    Recent Maintenance Requests
+                    <i class="bi bi-list-ul"></i>
+                    Maintenance Requests
                 </h5>
             </div>
             <div class="card-body">
                 {% if recent_requests %}
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Subject</th>
+                                    <th>Project/Subject</th>
                                     <th>Equipment</th>
-                                    <th>Type</th>
+                                    <th>Category</th>
                                     <th>Status</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
+                                    <th>Priority</th>
+                                    <th>Due Date</th>
+                                    <th>Assigned To</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for req in recent_requests %}
                                     <tr>
                                         <td>
-                                            <a href="{% url 'maintenance:detail' req.pk %}" class="text-decoration-none">
-                                                {{ req.subject|truncatewords:5 }}
+                                            <a href="{% url 'maintenance:detail' req.pk %}" class="text-decoration-none fw-bold">
+                                                {{ req.subject|truncatewords:8 }}
                                             </a>
                                         </td>
                                         <td>
@@ -95,48 +134,61 @@
                                             </a>
                                         </td>
                                         <td>
-                                            {% if req.request_type == 'Preventive' %}
-                                                <span class="badge bg-primary">Preventive</span>
+                                            {% if req.equipment.category %}
+                                                <span class="badge bg-secondary">{{ req.equipment.category.name }}</span>
                                             {% else %}
-                                                <span class="badge bg-warning text-dark">Corrective</span>
+                                                <span class="text-muted">—</span>
                                             {% endif %}
                                         </td>
                                         <td>
                                             {% if req.status == 'New' %}
-                                                <span class="badge badge-status-new">New</span>
+                                                <span class="badge bg-info">New</span>
                                             {% elif req.status == 'In Progress' %}
-                                                <span class="badge badge-status-in-progress">In Progress</span>
+                                                <span class="badge bg-warning text-dark">In Progress</span>
                                             {% elif req.status == 'Repaired' %}
-                                                <span class="badge badge-status-repaired">Repaired</span>
+                                                <span class="badge bg-success">Repaired</span>
+                                            {% elif req.status == 'Rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
                                             {% elif req.status == 'Scrap' %}
-                                                <span class="badge badge-status-scrap">Scrap</span>
-                                            {% endif %}
-                                            {% if req.is_overdue %}
-                                                <span class="badge bg-danger ms-1">Overdue</span>
+                                                <span class="badge bg-dark">Scrap</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ req.created_at|date:"M d, Y" }}</td>
                                         <td>
-                                            <a href="{% url 'maintenance:detail' req.pk %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
+                                            {% if req.priority == 'Critical' %}
+                                                <span class="badge bg-danger">Critical</span>
+                                            {% elif req.priority == 'High' %}
+                                                <span class="badge bg-warning text-dark">High</span>
+                                            {% elif req.priority == 'Medium' %}
+                                                <span class="badge bg-info">Medium</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Low</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if req.due_date %}
+                                                {{ req.due_date|date:"M d, Y" }}
+                                            {% else %}
+                                                <span class="text-muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if req.assigned_to %}
+                                                {{ req.assigned_to.get_full_name|default:req.assigned_to.username }}
+                                            {% else %}
+                                                <span class="text-muted">Unassigned</span>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    <div class="text-center mt-3">
-                        <a href="{% url 'maintenance:list' %}" class="btn btn-outline-primary">
-                            View All Requests
-                        </a>
-                    </div>
                 {% else %}
-                    <div class="empty-state">
-                        <i class="bi bi-inbox"></i>
-                        <h3>No requests yet</h3>
-                        <p>Maintenance requests will appear here once created.</p>
-                        <a href="{% url 'maintenance:create' %}" class="btn btn-primary">
+                    <div class="empty-state text-center py-5">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                        <h3 class="mt-3">No requests yet</h3>
+                        <p class="text-muted">Maintenance requests will appear here once created.</p>
+                        <a href="{% url 'maintenance:create' %}" class="btn btn-primary mt-2">
                             <i class="bi bi-plus-circle"></i>
                             Create Request
                         </a>
@@ -145,6 +197,7 @@
             </div>
         </div>
     </div>
+</div>
     
     {# Quick Actions #}
     <div class="col-md-4 mb-4">
@@ -378,6 +431,31 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh functionality (optional)
+    let autoRefreshInterval;
+    
+    // Optional: Auto-refresh every 30 seconds to show latest data
+    // Uncomment the line below to enable auto-refresh
+    // autoRefreshInterval = setInterval(function() {
+    //     window.location.reload();
+    // }, 30000);
+    
+    // Add click handler to refresh button
+    const refreshBtn = document.querySelector('a[title="Refresh Dashboard"]');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.reload();
+        });
+    }
+    
+    // Clear interval when page is unloaded
+    window.addEventListener('beforeunload', function() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    });
+    
     // Status Breakdown Chart
     {% if status_breakdown %}
     const statusCtx = document.getElementById('statusChart');

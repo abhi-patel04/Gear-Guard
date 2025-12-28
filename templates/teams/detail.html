@@ -52,7 +52,10 @@
                                     <li>
                                         <i class="bi bi-person"></i>
                                         {{ member.get_full_name|default:member.username }}
-                                        <small class="text-muted">({{ member.email|default:"No email" }})</small>
+                                        <small class="text-muted"> - {{ team.company|default:"My Company" }}</small>
+                                        {% if member.email %}
+                                            <br><small class="text-muted ms-3">({{ member.email }})</small>
+                                        {% endif %}
                                     </li>
                                 {% endfor %}
                             </ul>
